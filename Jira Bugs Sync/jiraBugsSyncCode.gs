@@ -67,7 +67,41 @@ function fetchIssuesFromJira(jqlQuery) {
 }
 
 function processIssues(issues) {
-  return [];
+  return issues.map(function(issue) {
+    var key = issue.key;
+    // Use a dynamic Jira URL
+    var issueUrl = PropertiesService.getScriptProperties().getProperty("JIRA_BASE_URL") + "browse/" + key;
+    var keyHyperLink = '=HYPERLINK("' + issueUrl + '","' + key + '")';
+
+    var summary = issue.fields.summary;
+    var status = issue.fields.status.name;
+    var createdDate  = new Date(issue.fields.created);
+    var formattedCreatedDate = Utilities.formatDate(createdDate, "GMT", "MM/dd/yyyy hh:mm a");
+    var resolvedDate  = new Date(issue.fields.resolutiondate);
+    var formattedResolvedDate = Utilities.formatDate(resolvedDate, "GMT", "MM/dd/yyyy hh:mm a");
+    var labels = issue.fields.labels;
+    var components = issue.fields.components ? issue.fields.components.map(function(component) {
+      return component.name;
+    }).join(', ') : '';  // Handle undefined components gracefully
+    var projectName = issue.fields.project.name;
+
+    // Get linked issues (uncomment filter logic if needed)
+    var linkedIssues = issue.fields.issuelinks ? issue.fields.issuelinks
+      .filter(function(link) {
+        // Uncomment and use this filter if required
+        // return link.outwardIssue && (link.type.name === "Blocks" || link.type.name === "is blocked by");
+        return link.outwardIssue;
+      })
+      .map(function(link) {
+        var linkedKey = link.outwardIssue.key;
+        var linkedIssuesUrl = PropertiesService.getScriptProperties().getProperty("JIRA_BASE_URL") + "browse/" + linkedKey;
+        return '=HYPERLINK("' + linkedIssuesUrl + '","' + linkedKey + '")';
+      })
+      .join("; ")
+      : '';
+
+    return [keyHyperLink, summary, status, formattedCreatedDate, formattedResolvedDate, labels, components, projectName, linkedIssues];
+  });
 }
 
 function writeToSheet(data) {
