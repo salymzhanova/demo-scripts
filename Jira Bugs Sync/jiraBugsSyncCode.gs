@@ -105,5 +105,46 @@ function processIssues(issues) {
 }
 
 function writeToSheet(data) {
-  return [];
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // Check if any data is in the sheet
+  var lastRow = sheet.getLastRow();
+  var existingData = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues() : [];
+
+  var keyColumnIndex = 0; // Assuming the key is in the first column
+  var statusIndex = 2; // Assuming status is in the third column
+  var resolvedDateIndex = 4; // Assuming resolved date is in the fifth column
+
+  // Create a map to store existing data keys for efficient lookup
+  var existingKeysMap = {};
+  for (var i = 0; i < existingData.length; i++) {
+    existingKeysMap[existingData[i][keyColumnIndex]] = i; // Store the index by key
+  }
+
+  // Iterate through the processed data
+  for (var i = 0; i < data.length; i++) {
+    var issue = data[i];
+    var key = issue[keyColumnIndex];
+
+    if (!(key in existingKeysMap)) {
+      // Key does not exist, insert new row at the top
+      sheet.insertRowBefore(2);
+      sheet.getRange(2, 1, 1, issue.length).setValues([issue]);
+
+      // Update the map with the new key
+      existingKeysMap[key] = 0; // New key is inserted at index 0
+    } else {
+      // Key exists, check if the status or resolved date has changed
+      var keyIndex = existingKeysMap[key];
+      var existingRow = existingData[keyIndex];
+
+      if (
+        existingRow[statusIndex] !== issue[statusIndex] ||
+        existingRow[resolvedDateIndex] !== issue[resolvedDateIndex]
+      ) {
+        sheet.getRange(keyIndex + 2, statusIndex + 1).setValue(issue[statusIndex]); // Update status
+        sheet.getRange(keyIndex + 2, resolvedDateIndex + 1).setValue(issue[resolvedDateIndex]); // Update resolved date
+      }
+    }
+  }
 }
